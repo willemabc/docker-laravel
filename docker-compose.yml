@@ -1,0 +1,88 @@
+version: '3'
+services:
+    lnginx:
+        build:
+            context: .
+            dockerfile: nginx.dockerfile
+        container_name: lnginx
+        ports:
+            - "80:80"
+        volumes:
+            - ./src:/var/www/html:delegated
+        depends_on:
+            - lphp
+            - lmysql
+        networks:
+            - lnet
+
+    lmysql:
+        image: mysql:5.7.29
+        container_name: lmysql
+        restart: unless-stopped
+        tty: true
+        ports:
+            - "3306:3306"
+        environment:
+            MYSQL_DATABASE: laravel
+            MYSQL_USER: laravel
+            MYSQL_PASSWORD: laravel
+            MYSQL_ROOT_PASSWORD: laravel
+            SERVICE_TAGS: dev
+            SERVICE_NAME: lmysql
+        volumes:
+            - ./mysql:/var/lib/mysql
+        networks:
+            - lnet
+
+    lphp:
+        build:
+            context: .
+            dockerfile: php.dockerfile
+        container_name: lphp
+        volumes:
+            - ./src:/var/www/html:delegated
+        ports:
+            - "9000:9000"
+        networks:
+            - lnet
+
+    lcomposer:
+        build:
+            context: .
+            dockerfile: composer.dockerfile
+        container_name: lcomposer
+        volumes:
+            - ./src:/var/www/html
+        working_dir: /var/www/html
+        depends_on:
+            - lphp
+        user: laravel
+        networks:
+            - lnet
+        entrypoint: ['composer', '--ignore-platform-reqs']
+
+    lnpm:
+        image: node:13.7
+        container_name: lnpm
+        volumes:
+            - ./src:/var/www/html
+        working_dir: /var/www/html
+        entrypoint: ['npm']
+
+    lartisan:
+        build:
+            context: .
+            dockerfile: php.dockerfile
+        container_name: lartisan
+        volumes:
+            - ./src:/var/www/html:delegated
+        depends_on:
+            - lmysql
+        working_dir: /var/www/html
+        user: laravel
+        entrypoint: ['php', '/var/www/html/artisan']
+        networks:
+            - lnet
+
+networks:
+    lnet:
